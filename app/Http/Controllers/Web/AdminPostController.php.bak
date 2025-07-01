@@ -1,0 +1,760 @@
+<?php
+
+namespace App\Http\Controllers\Web;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Reader\Exception;
+use PhpOffice\PhpSpreadsheet\Writer\Xls;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+use Carbon\Carbon;
+
+use Session;
+
+
+class AdminPostController extends Controller
+{
+
+    public function __construct()
+    {
+        
+    }
+
+
+    public function generate_login_phone_otp(Request $request)
+    {
+
+        $random     =       Session::get('random');
+        $username   =   config('customparam.udin_username');
+        $password   =   config('customparam.udin_password');
+        $phone      =   $request->udin_phone; //69d66e13973144835844a0446c90d5e1
+
+        $post_field_arr  = array(
+            'username' => $username,
+            'password' => encryptHEXFormat($password, $random),
+            'random'   =>  $random,
+            'phone' =>  encryptHEXFormat($phone, $random)
+        );
+
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/service/user-login/auth';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+
+        $response = [
+            "error" => $data['error'],
+            "message" => $data['message'] /* "OTP has been sent to your registered mobile number." */,
+        ];
+
+        return response()->json($response, 200);
+    }
+
+
+    public function verify_login_phone_otp(Request $request)
+    {
+      //  dd(Session::all());
+        $random     =       Session::get('random');
+        $phone      =   $request->udin_phone; //69d66e13973144835844a0446c90d5e1
+        $udin_otp   =   $request->udin_otp; //69d66e13973144835844a0446c90d5e1
+
+        $post_field_arr  = array(
+            'random'   =>  $random,
+            'phone'    =>  encryptHEXFormat($phone, $random),
+            'otp'      =>  $udin_otp,
+        );
+
+        $post_field =  http_build_query($post_field_arr);
+     //   dd( $post_field);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/service/user-login/validate';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+
+        if (!$data['error']) {
+            Session::put('name', $data['udin_profile']);
+            Session::put('photo', '');
+            Session::put('udin_token', $data['token']);
+        }
+        $response = [
+            "error" => $data['error'],
+            "message" => $data['message'] /* "OTP has been sent to your registered mobile number." */,
+        ];
+
+        return response()->json($response, 200);
+    }
+
+
+    public function upload_certificate_excel(Request $request)
+    {
+        /*  $this->validate($request, [
+            'certificate-excel' => 'required|file|mimes:xls,xlsx'
+        ]);
+        */
+
+
+        $the_file = $request->file('certificate-excel');
+        try {
+            $spreadsheet = IOFactory::load($the_file->getRealPath());
+
+            /*dd($spreadsheet);*/
+            $sheet        = $spreadsheet->getActiveSheet();
+            $row_limit    = $sheet->getHighestDataRow();
+            $column_limit = $sheet->getHighestDataColumn();
+            $row_range    = range(2, $row_limit);
+            /*   $column_range = range( 'F', $column_limit );
+            $startcount = 2; */
+            $data = array();
+            $coloumn    =  range('A', 'Y');
+
+            $date_calculate_arr    =   ['date', 'date2'];
+            $time_calculate_arr =   ['time', 'time2'];
+
+            foreach ($row_range as $row) {
+                $value_data =   [];
+                foreach ($coloumn as $c) {
+
+                    $key    =   $sheet->getCell($c . 1)->getValue();
+                    $value  =   $sheet->getCell($c . $row)->getValue();
+
+                    if (in_array($key,  $date_calculate_arr)) {
+                        if ($value != '') {
+                            $unixTimestamp = ($value - 25569) * 86400;
+                            $value = date('Y-m-d', $unixTimestamp);
+                        }
+                    }
+
+                    if (in_array($key,  $time_calculate_arr)) {
+                        if ($value != '') {
+                            //$value  = date("H:i:s", ($value * 86400));
+                        }
+                    }
+
+                    $value_data +=   [
+                        $key =>  $value,
+
+                    ];
+                }
+
+                $data[] = $value_data;
+                // $startcount++;
+            }
+            //   dd( $data);
+
+            DB::table('user_sahajpath_cert')->insert($data);
+        } catch (Exception $e) {
+
+            $error_code = $e->getMessage();
+            return back()->with('message', 'error|Data Upload Failed');
+        }
+        return back()->with('message', 'success|Data Uploaded Successfully');
+    }
+
+
+    public function generate_aadhar_otp(Request $request)
+    {
+
+        $random     =       Session::get('random');
+
+        $token  =   Session::get('udin_token');
+        $aadhar_no  =  $request->udin_aadhaar;
+
+        $post_field_arr  = array(
+            'token'      =>  $token,
+            'aadhar_no'    =>  encryptHEXFormat($aadhar_no, $random),
+            'random'   =>  $random,
+        );
+
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/upload/request-aadhaar-otp';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+
+        $response = [
+            "error"         => $data['error'],
+            "message"       => $data['message'] /* "OTP has been sent to your registered mobile number." */,
+            "transaction"   =>  isset($data['trans_id']) ? $data['trans_id'] : ''
+        ];
+        return response()->json($response, 200);
+    }
+
+
+    public function verify_aadhar_otp(Request $request)
+    {
+
+        $random     =       Session::get('random');
+        $token      =       Session::get('udin_token');
+
+        $transaction_id  =  $request->transaction_id;
+        $otp_num         =  $request->addhar_otp;
+        $post_field_arr  = array(
+            'token'     =>  $token,
+            'random'    =>  $random,
+            'trans_id'  =>  $transaction_id,
+            'otp_num'   =>  $otp_num
+        );
+
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/upload/validate-aadhar-otp';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+
+        // dd($data);
+        if (!$data['error']) {
+            if ($data['aadhar_verified_token']) {
+                Session::put('udin_session_aadhar_verifyed', true);
+            }
+        }
+        $response = [
+            "error"         => $data['error'],
+            "message"       => $data['message'] /* "OTP has been sent to your registered mobile number." */,
+            //  "transaction"   =>  isset( $data['trans_id'])? $data['trans_id'] : ''
+        ];
+        return response()->json($response, 200);
+    }
+
+    public function generate_udin_certificate(Request $request)
+    {
+
+        $random     =   Session::get('random');
+        $token      =   Session::get('udin_token');
+
+        $id         =   $request->id;
+
+        $cert_data    =   DB::table('user_sahajpath_cert')
+            ->where('uploaded', 0)
+            ->where('id', $id)
+            ->limit(1)
+            ->get();
+
+        foreach ($cert_data  as $cd) {
+            //generate utin rate
+            $post_field_arr  = array(
+                'token'     =>  $token,
+                'random'    =>  $random,
+                'doc_validity'  =>  10,
+                'template_id'   =>  config('customparam.utin_sahajpath_temp_id')
+            );
+
+            $post_field =  http_build_query($post_field_arr);
+            $header     =  array(
+                'X-Api-Token: ' . Session::get('x_api_token'),
+                'Content-Type: application/x-www-form-urlencoded'
+            );
+
+            $url    =   config('customparam.udin_base_url') . '/api/payment/get-utin-document-rate';
+            $x_api_data =   array(
+                'method'        =>  'POST',
+                'url'           =>  $url,
+                'post_field'    =>  $post_field,
+                'header'        =>  $header,
+            );
+            $data   =   curl($x_api_data);
+
+            //dd($data);
+            $id     =  $cd->id;
+            if (!$data['error']) {
+                DB::table('user_sahajpath_cert')
+                    ->where('id',  $id)
+                    ->update(
+                        array(
+                            'quotation_id'  =>  $data['data']['quotation_id']
+                        )
+                    );
+                return $this->generate_document_rate($data, $id);
+            } else {
+                $reponse = array(
+                    'error'     =>  true,
+                    'e_code'    =>  $data['code'],
+                    'message'   =>  $data['message']
+                );
+                return response(json_encode($reponse), 200);
+            }
+        }
+
+    }
+    
+    // function generate_multi_document(Request $request){
+    //     /*dd($request->ref);*/
+    //     $random     =   Session::get('random');
+    //     $token      =   Session::get('udin_token');
+    //     for($i=0;$i<count($request->ref);$i++){
+            
+    //         $id         =   $request->ref[$i];
+            
+    //         $cert_data    =   DB::table('user_sahajpath_cert')
+    //             ->where('uploaded', 0)
+    //             ->where('id', $id)
+    //             ->limit(1)
+    //             ->get();
+    //             //dd($cert_data);
+    //             foreach ($cert_data  as $cd) {
+    //                 //generate utin rate
+    //                 $post_field_arr  = array(
+    //                     'token'     =>  $token,
+    //                     'random'    =>  $random,
+    //                     'doc_validity'  =>  10,
+    //                     'template_id'   =>  config('customparam.utin_sahajpath_temp_id')
+    //                 );
+        
+    //                 $post_field =  http_build_query($post_field_arr);
+    //                 $header     =  array(
+    //                     'X-Api-Token: ' . Session::get('x_api_token'),
+    //                     'Content-Type: application/x-www-form-urlencoded'
+    //                 );
+        
+    //                 $url    =   config('customparam.udin_base_url') . '/api/payment/get-utin-document-rate';
+    //                 $x_api_data =   array(
+    //                     'method'        =>  'POST',
+    //                     'url'           =>  $url,
+    //                     'post_field'    =>  $post_field,
+    //                     'header'        =>  $header,
+    //                 );
+    //                 $data   =   curl($x_api_data);
+        
+    //                 //dd($data);
+    //                 $id     =  $cd->id;
+    //                 if (!$data['error']) {
+    //                     DB::table('user_sahajpath_cert')
+    //                         ->where('id',  $id)
+    //                         ->update(
+    //                             array(
+    //                                 'quotation_id'  =>  $data['data']['quotation_id']
+    //                             )
+    //                         );
+    //                     $this->generate_document_rate($data, $id);
+                        
+    //                 } else {
+    //                     $reponse = array(
+    //                         'error'     =>  true,
+    //                         'e_code'    =>  $data['code'],
+    //                         'message'   =>  $data['message']
+    //                     );
+    //                     return response(json_encode($reponse), 200);
+    //                 }
+    //             }
+    //         }
+            
+    //         $reponse = array(
+    //             'error'     =>  false,
+    //             'message'   =>  'Success'
+    //         );
+    //         return response(json_encode($reponse), 200);
+    // }
+
+    function generate_document_rate($data, $id)
+    {
+        $random     =   Session::get('random');
+        $token      =   Session::get('udin_token');
+        $qt_data    =    DB::table('user_sahajpath_cert')
+            ->where('id',  $id)
+            ->first();
+        $post_field_arr  = array(
+            'token'     =>  $token,
+            'random'    =>  $random,
+            'quotation_id'  =>   $qt_data->quotation_id,
+            'redirect_url'  => 'redirect'
+        );
+        //dd($post_field_arr);
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/payment/generate-utin-document-payment';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+        /*$s = Session::has('udin_session_aadhar_verifyed');
+        echo $s;*/
+        //dd($data);
+        if (!$data['error']) {
+            DB::table('user_sahajpath_cert')
+                ->where('id',  $id)
+                ->update(
+                    array(
+                        'transaction_id'  =>  $data['data']['payment_resp']['transaction_ref']
+                    )
+                );
+            return $this->upload_utin_data($data,  $id);
+        } else {
+            $reponse = array(
+                'error'     =>  true,
+                'e_code'    =>  $data['code'],
+                'message'   =>  $data['message']
+            );
+            return response(json_encode($reponse), 200);
+        }
+        
+    }
+
+    public function logout(){
+        Session::flush();
+         return redirect('/admin/login')->with('message', 'success|You have logedout Successfully');
+    }
+    public function upload_utin_data($data,  $id)
+    {
+
+        $random     =   Session::get('random');
+        $token      =   Session::get('udin_token');
+        $qt_data     =    DB::table('user_sahajpath_cert')
+            ->where('id',  $id)
+            ->first();
+        
+        $keyword_arr    =  array(
+            '_organisation_name'        => ucwords(strtolower($qt_data->organisation_name)),
+            '_training_name'            => ucwords(strtolower($qt_data->traning_name)),
+            '_participant_name'         => strtoupper($qt_data->name),
+            '_certificate_signer_name'  => $qt_data->signer_name,
+            '_certificate_signer_designation' => $qt_data->signer_designation,
+            '_certificate_signer_organisation' => $qt_data->signer_organisation,
+            '_perticipate_date_on'      => $qt_data->date,
+            '_perticipate_date_to'      => $qt_data->date2,
+            '_perticipate_time_on'      => $qt_data->time,
+            '_perticipate_time_to'      => $qt_data->time2,
+            '_logo1'                    => $qt_data->logo1,
+            '_logo2'                    => $qt_data->logo2,
+            '_venue'                    => $qt_data->venue,
+            '_id'                       => $qt_data->id,
+            '_short_name'               => $qt_data->short_name,
+            '_collaborator_name'        => $qt_data->collaborator
+        );
+
+
+
+        $post_field_arr  = array(
+            'token'         =>  $token,
+            'random'        =>  $random,
+            'quotation_id'  =>  $qt_data->quotation_id,
+            'transaction_id' =>  $qt_data->transaction_id,
+            'doc_visibility' =>  'PUBLIC',
+            'doc_type'      =>  'C',
+            'key_word'      =>  json_encode($keyword_arr),
+            'template_id'   =>  config('customparam.utin_sahajpath_temp_id')
+            
+        );
+
+
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/upload/utin';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+       
+        if ($data['code']=="SUC_00000") {
+            DB::table('user_sahajpath_cert')
+                ->where('id',  $id)
+                ->update(
+                    array(
+                        'uploaded'  =>  1
+                    )
+                );
+
+           $this->getudin($id);
+        } else {
+            $reponse = array(
+                'error'     =>  true,
+                'e_code'    =>  $data['code'],
+                'message'   =>  $data['message']
+            );
+            return response(json_encode($reponse), 200);
+        }
+    }
+
+
+    function getudin($id)
+    {
+        sleep(10);
+        $random     =   Session::get('random');
+        $token      =   Session::get('udin_token');
+
+        $qt_data     =    DB::table('user_sahajpath_cert')
+            ->where('id',  $id)
+            ->first();
+        $post_field_arr  = array(
+            'token'         =>  $token,
+            'random'        =>  $random,
+            'quotation_id'  =>  $qt_data->quotation_id,
+
+        );
+
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/upload/get-udin-number';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+        
+        if ($data['code']=="SUC_00000") {
+            DB::table('user_sahajpath_cert')
+                ->where('id',  $id)
+                ->update(
+                    array(
+                        'udin'  =>   $data['data'][0]['udin'],
+                        'is_generate'=>'1'
+
+                    )
+                );
+                
+                $reponse = array(
+                    'error'     =>  false,
+                    'e_code'    =>  $data['code'],
+                    'message'   =>  $data['message']
+                );
+                return response(json_encode($reponse), 200);
+        } else {
+            $reponse = array(
+                'error'     =>  true,
+                'e_code'    =>  $data['code'],
+                'message'   =>  $data['message']
+            );
+            return response(json_encode($reponse), 200);
+        }
+    }
+
+    public function getUDINno(Request $request){
+       /*dd($request["ref"]);*/
+       $id      =   $request["ref"];
+       $random     =   Session::get('random');
+        $token      =   Session::get('udin_token');
+
+        $qt_data     =    DB::table('user_sahajpath_cert')
+            ->where('id',  $id)
+            ->first();
+        $post_field_arr  = array(
+            'token'         =>  $token,
+            'random'        =>  $random,
+            'quotation_id'  =>  $qt_data->quotation_id,
+
+        );
+
+        $post_field =  http_build_query($post_field_arr);
+        $header     =  array(
+            'X-Api-Token: ' . Session::get('x_api_token'),
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+
+        $url    =   config('customparam.udin_base_url') . '/api/upload/get-udin-number';
+        $x_api_data =   array(
+            'method'        =>  'POST',
+            'url'           =>  $url,
+            'post_field'    =>  $post_field,
+            'header'        =>  $header
+        );
+        $data   =   curl($x_api_data);
+       
+        if ($data['code']=="SUC_00000") {
+            DB::table('user_sahajpath_cert')
+                ->where('id',  $id)
+                ->update(
+                    array(
+                        'udin'  =>   $data['data'][0]['udin'],
+                        'is_generate'=>'1'
+
+                    )
+                );
+                $reponse = array(
+                    'error'     =>  false,
+                    'e_code'    =>  $data['code'],
+                    'message'   =>  $data['message']
+                );
+                return response(json_encode($reponse), 200);
+        } else {
+            $reponse = array(
+                'error'     =>  true,
+                'e_code'    =>  $data['code'],
+                'message'   =>  $data['message']
+            );
+            return response(json_encode($reponse), 200);
+        }
+    }
+    
+    function download_document(Request $request){
+
+        $udin_no   =    $request->ref;
+        /*echo $udin_no;*/
+
+        $data  =   DB::table('user_sahajpath_cert')
+                    ->where('udin', $udin_no)
+                    ->get();
+
+
+        if($data[0]->udin==null)
+        {
+            $result = array(
+                'error'   =>true,
+                'message' =>'Udin is not generated yet!!Try again.'
+            );
+            return $result;
+        }else{
+
+            $token          =   Session::get('udin_token');
+            /*$x_api_token    = Session::get('x_api_token');*/
+            /*echo $x_api_token."-------".$udin_no;dd();
+*/
+            $post_field_arr  = array(
+                'udin'         =>  $udin_no,
+                'token'        =>  $token
+            );
+
+            $post_field =  http_build_query($post_field_arr);
+
+            $header     =  array(
+                'X-Api-Token: ' . Session::get('x_api_token'),
+                'Content-Type: application/x-www-form-urlencoded'
+            );
+
+            $url    =   config('customparam.udin_base_url') . '/api/verify/udin';
+            $x_api_data =   array(
+                'method'        =>  'POST',
+                'url'           =>  $url,
+                'post_field'    =>  $post_field,
+                'header'        =>  $header
+            );
+            $resp   =   curl($x_api_data);
+            //print_r($resp);exit();
+            
+                if($resp["error"]){
+
+                    $ret_data = array(
+                        'error' => true,
+                        'status'=> $resp["document"]["status_code"],
+                        'status_text'=>$resp["document"]["status_text"],
+                        'docName'=> $resp["document"]["document_data"]["doc_name"],
+                        'message'=>$resp["message"]
+                    );
+
+                    return  $ret_data;
+                }else{
+                        /*$base_64_certificate  = $resp["document"]["document_data"]["doc_base64"];  */ 
+                        $base_64_original  = $resp["document"]["document_data"]["doc_original_base64"];
+
+                        $ret_data = array(
+                            'error'=>false,
+                            'data_original'=>$base_64_original,
+                            /*'data_certificate'=>$base_64_certificate,*/
+                            'filename'=> $resp["document"]["document_data"]["doc_meta"]["__udin"]
+                        );
+
+                        return  $ret_data;
+                }
+        }
+
+    }
+
+    public function download_multi_document(Request $request){
+      /*dd($request->ref[0]);*/
+        $post_field_arr  = array(
+            'udin'         =>  $request->ref,
+            'random'       =>  Session::get('random')
+        );
+        $post_field =  http_build_query($post_field_arr);
+
+            $header     =  array(
+                'X-Api-Token: ' . Session::get('x_api_token'),
+                'Content-Type: application/x-www-form-urlencoded'
+            );
+
+            $url    =   config('customparam.udin_base_url') . '/api/verify/multiple-udin';
+            $x_api_data =   array(
+                'method'        =>  'POST',
+                'url'           =>  $url,
+                'post_field'    =>  $post_field,
+                'header'        =>  $header
+            );
+           
+            $resp   =   curl($x_api_data);
+         //print_r($resp);die();
+            if($resp["error"]){
+                $ret_data = array(
+                    'error' => true,
+                    'message'=> "Unable to download!!"
+                );
+
+                return  $ret_data;
+            }else{
+
+                for($i=0;$i<count($request->ref);$i++){
+                    DB::table('user_sahajpath_cert')
+                    ->where('udin', $request->ref[$i])
+                    ->update(
+                        [
+                            'is_downloaded'=>1
+                        ]
+                    );
+                }
+
+                $ret_data = array(
+                    'error'=>false,
+                    'data_original'=>$resp["document"]
+                );
+
+                return  $ret_data;
+
+            }
+    }
+}

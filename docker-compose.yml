@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stf_udin_app
+    volumes:
+      - .:/var/www/html/STF_UDIN
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - stf_network
+
+  db:
+    image: mysql:8.0
+    container_name: stf_udin_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: stf_udin_certificates
+      MYSQL_USER: stf_user
+      MYSQL_PASSWORD: stf_pass
+    volumes:
+      - stf_udin_dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - stf_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: stf_udin_phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    networks:
+      - stf_network
+
+  redis:
+    image: redis:alpine
+    container_name: stf_udin_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - stf_network
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stf_udin_queue
+    command: php artisan queue:work --tries=3
+    volumes:
+      - .:/var/www/html/STF_UDIN
+    depends_on:
+      - app
+      - redis
+    networks:
+      - stf_network
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stf_udin_scheduler
+    command: sh -c "while [ true ]; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    volumes:
+      - .:/var/www/html/STF_UDIN
+    depends_on:
+      - app
+    networks:
+      - stf_network
+
+volumes:
+  stf_udin_dbdata:
+
+networks:
+  stf_network:

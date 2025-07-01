@@ -1,0 +1,63 @@
+@extends('admin.layouts.public')
+@section('page_title', $page_tile)
+@section('content')
+<section id="main-content">
+    <section class="wrapper">
+
+        <div class="row">
+            <div class="col-lg-9 main-chart">
+
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                      <li class="breadcrumb-item"><a href="#">Upload</a></li>
+                      <li class="breadcrumb-item active" aria-current="page">{{$page_tile}}</li>
+                    </ol>
+                  </nav>
+
+
+                <!-- BASIC FORM ELELEMNTS -->
+                <div class="row mt" style="border-radius:3px;">
+                    <div class="col-lg-12">
+                        <div class="form-panel">
+                            {{ Form::open(['url' => env('APP_URL').'/admin/upload/certificate-excel', 'method' => 'post', 'id' => 'certificate-excel', 'class' => 'certificate-excel form-inline', 'autocomplete'=>"off",'files'=>'true']) }}
+                                
+                                    <div class="form-group">
+                                        <label for="options"><b>Select Notice Option:</b></label>&nbsp;&nbsp;
+                                        <select class="form-control" name="notice_id" id="notice_id">
+                                            <option value="">Select</option>
+                                            <option value="notice_35">Notice U/s 35</option>
+                                            <option value="notice_94">Notice U/s 94</option>
+                                            <option value="notice_179">Notice U/s 179</option>
+                                        </select>
+                                    </div><br><br>
+
+                                    <div class="form-group">
+                                        <label class="" for="certificate-excel"><b>Excel file: </b></label>&nbsp;&nbsp;
+                                        <input type="file" class="form-control" name='certificate-excel' id="certificate-excel" placeholder="">
+                                    </div>
+                                    
+                                <button type="submit" class="btn btn-theme">Upload</button>
+                                
+                            {{ Form::close() }}
+                        </div>
+                    </div><!-- col-lg-12-->
+                </div><!-- /row -->
+
+
+
+
+            </div><!-- /col-lg-9 END SECTION MIDDLE -->
+
+
+            <!-- **********************************************************************************************************************************************************
+            RIGHT SIDEBAR CONTENT
+            *********************************************************************************************************************************************************** -->
+
+            
+        </div>
+        <!--/row -->
+    </section>
+</section>
+
+
+@stop

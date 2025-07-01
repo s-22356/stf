@@ -1,0 +1,19 @@
+.hide {
+    display: none;
+    visibility: hidden;
+}
+
+.show {
+    display: block;
+    visibility: visible;
+}
+
+#footer-section-pos {
+   position: absolute;
+   bottom: 0;
+   width: 100%;
+   background-color: yellow;
+   color: skyblue;
+   text-align: center;
+}
+

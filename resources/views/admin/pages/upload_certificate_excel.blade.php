@@ -1,0 +1,236 @@
+@extends('admin.layouts.public')
+@section('page_title', $page_tile)
+@section('content')
+
+<section id="main-content">
+    <br>
+    <section class="wrapper">
+
+        <div class="row justify-content-center">
+            <div class="col-lg-12">
+            
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-4 form_fields">
+                    <ol class="breadcrumb bg-light p-3 rounded">
+                        <li class="breadcrumb-item"><a href="#">Upload</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ $page_tile }}</li>
+                    </ol>
+                </nav>
+                        {{ Form::open([
+                            'url' => env('APP_URL').'/admin/upload/certificate-excel', 
+                            'method' => 'post', 
+                            'id' => 'certificate-excel', 
+                            'class' => 'certificate-excel', 
+                            'autocomplete' => "off", 
+                            'files' => 'true'
+                        ]) }}
+
+                <div class="card shadow-lg" style="border-radius: 7px;height:100%;padding:1%;width:40%;margin-left:30%;">
+                    <div class="card-header text-white text-center">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="notice_id" class="form-label"><b class="form_fields">Select Notice Option:</b></label>
+                                    <select class="form-control" name="nd_notice_id" id="nd_notice_id" required>
+                                        <option value="">Select</option>
+                                        <option value="1">Notice U/s 35</option>
+                                        <option value="4">Notice U/s 179</option>
+                                        <option value="3">Notice U/s 94</option>
+                                        <option value="2">Notice U/s 67 N.D.P.S Act</option>
+                                    </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Panel Notice U/S 35 -->
+                <div class="card shadow-lg" style="border-radius: 7px;height:100%;padding:1%;">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h3>Fill The Special Task Force Notice Data</h3>
+                    </div>
+                    <div class="card-body p-4">
+                        
+
+                        <input type="hidden" id="notice_id" name="notice_id" value="">
+                        
+
+                        <!-- Section: Notice & FIR Information -->
+                        <h5 class="mb-4 text-primary"><b>FIR Information</b></h5>
+                        <div class="row mb-3">
+                            
+                            <div class="col-md-6">
+                                <label for="fir_no" class="form-label"><b class="form_fields">Enter Case FIR No:</b></label>
+                                <input type="text" name="fir_no" class="form-control" id="fir_no" placeholder="e.g., 123/2024" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="us_no" class="form-label"><b class="form_fields">Enter U/s:</b></label>
+                                <input type="text" name="us_no" class="form-control" id="us_no" placeholder="e.g., 420, 120B" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            
+                            <div class="col-md-6">
+                                <label for="fir_date" class="form-label"><b class="form_fields">Enter FIR Date:</b></label>
+                                <input type="date" name="fir_date" class="form-control" id="fir_date" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="police_stn" class="form-label"><b class="form_fields">Enter FIR Police Station:</b></label>
+                                <input type="text" name="police_stn" class="form-control" id="police_stn" placeholder="e.g., Connaught Place PS" required>
+                            </div>
+                        </div>
+
+                        <!-- Section: Police Station & Diary -->
+                        <!-- <h5 class="mb-4 text-primary">Police Station Details</h5> -->
+                        <div class="row mb-3">
+                            
+                            <div class="col-md-6">
+                                <label for="diary_no" class="form-label"><b class="form_fields">Enter Diary Number:</b></label>
+                                <input type="text" name="diary_no" class="form-control" id="diary_no" placeholder="e.g., 456789" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="diary_no" class="form-label"><b class="form_fields">Enter Diary Date:</b></label>
+                                <input type="date" name="diary_date" class="form-control" id="diary_date" placeholder="e.g., 456789" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="city" class="form-label"><b class="form_fields">Enter City:</b></label>
+                                <input type="text" name="city" class="form-control" id="city" placeholder="e.g., New Delhi" required>
+                            </div>
+                        </div><br>
+
+                        <!-- Section: Accused Details -->
+                        <h5 class="mb-4 text-primary"><b>Accused Details</b></h5>
+                        <div class="row mb-3">
+                            
+                            <div class="col-md-6">
+                                <label for="accused_name" class="form-label"><b class="form_fields">Enter Name of Accused:</b></label>
+                                <input type="text" name="accused_name" class="form-control" id="accused_name" placeholder="e.g., John Doe" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="accused_address" class="form-label"><b class="form_fields">Enter Address of Accused:</b></label>
+                                <textarea name="accused_address" class="form-control" id="accused_address" rows="2" placeholder="Enter full address" required></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="social_ph_mobile" class="form-label"><b class="form_fields">Enter Email/Mobile:</b></label>
+                                <input type="text" name="social_ph_mobile" class="form-control" id="social_ph_mobile" placeholder="e.g., email@example.com / +919876543210" required>
+                            </div>
+                        </div>
+
+
+                        <!-- Section: Accused Appearance Details -->
+                        <div id="accused_appearence_dtls">
+                            <h5 class="mb-4 text-primary"><b>Accused Appearance Details</b></h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="accused_appearing_date" class="form-label"><b class="form_fields">Enter Accused Appearing Date:</b></label>
+                                    <input type="date" name="accused_appearing_date" class="form-control" id="accused_appearing_date" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="appearing_time" class="form-label"><b class="form_fields">Enter Appearing Time:</b></label>
+                                    <input type="time" name="appearing_time" class="form-control" id="appearing_time" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="accused_appearing_place" class="form-label"><b class="form_fields">Enter Accused Appearing Place:</b></label>
+                                    <input type="text" name="accused_appearing_place" class="form-control" id="accused_appearing_place" placeholder="e.g., Courtroom 4" required>
+                                </div>
+                            </div>
+                        </div><br>
+                        <!-- Section: Complinant Details -->
+                        <div id="complinant_details">
+                            <h5 class="mb-4 text-primary"><b>Complinant Details</b></h5>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="complinant_name" class="form-label"><b class="form_fields">Enter Complinant Name:</b></label>
+                                    <input type="text" name="complinant_name" class="form-control" id="complinant_name" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="complinant_father_name" class="form-label"><b class="form_fields">Enter Complinant Father Name:</b></label>
+                                    <input type="text" name="complinant_father_name" class="form-control" id="complinant_father_name" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="complinant_address" class="form-label"><b class="form_fields">Enter Complinant Address:</b></label>
+                                    <input type="text" name="complinant_address" class="form-control" id="complinant_address" placeholder="e.g., Courtroom 4" required>
+                                </div>
+                            </div>
+                        </div><br>
+                        
+                        <!-- Section: Document Details -->
+                        <div id="document_dtls">
+                            <h5 class="mb-4 text-primary"><b>Document Details</b></h5>
+                            <div class="row mb-3 document-row">
+                                <div class="col-md-6">
+                                    <label for="document_details" class="form-label"><b class="form_fields">Enter Document Name 1:</b></label>
+                                    <textarea name="document_name[]" class="form-control document_name"></textarea>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-danger remove-button" style="display: none;">Remove</button>
+                                </div>
+                            </div>
+                            <div id="additional-document-names"></div><br>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-primary" id="add-more-button">Add More</button>
+                                </div>
+                            </div>
+                        </div><br>
+                        
+                        <!-- Section: Receiver Details -->
+                        <!-- <h5 class="mb-4 text-primary"><b>Receiver Details</b></h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="receiver_name" class="form-label"><b class="form_fields">Enter Receiver Name:</b></label>
+                                <input type="text" name="receiver_name" class="form-control" id="receiver_name" placeholder="e.g., Officer ABC" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="accused_appearing_place" class="form-label"><b class="form_fields">Enter Receiving Date:</b></label>
+                                <input type="date" name="receiving_date" class="form-control" id="receiving_date" placeholder="e.g., Courtroom 4" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="receiver_name" class="form-label"><b class="form_fields">Enter Receiving Place:</b></label>
+                                <input type="text" name="receiver_place" class="form-control" id="receiver_place" placeholder="e.g., Officer ABC" required>
+                            </div>
+                        </div><br> -->
+                        <!-- Section: Officer Details -->
+                        <h5 class="mb-4 text-primary"><b>Officer Details</b></h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="accused_appearing_place" class="form-label"><b class="form_fields">Enter Officer Designation:</b></label>
+                                <input type="text" name="officer_designation" class="form-control" id="officer_designation" placeholder="e.g., Courtroom 4" maxlength="30" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="receiver_name" class="form-label"><b class="form_fields">Enter Officer Place Of Posting:</b></label>
+                                <input type="text" name="officer_place_of_posting" class="form-control" id="officer_place_of_posting" placeholder="e.g., Officer ABC" maxlength="30" required>
+                            </div>
+                        </div><br>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="receiver_name" class="form-label"><b class="form_fields">Enter Officer Phone Number:</b></label>
+                                <input type="text" name="officer_phone" class="form-control" id="officer_phone" placeholder="e.g., Officer ABC" maxlength="10" required>
+                            </div>
+                        </div><br>
+                        <!-- Submit Button -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="text-center">
+                                    <button type="submit" class="btn btn-lg px-5 py-2" style="background: #584090;color:white">Upload</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                    </div>
+
+                </div>
+
+                {{ Form::close() }}
+
+            </div>
+        </div>
+
+    </section>
+</section>
+@stop

@@ -1,0 +1,19 @@
+<?php
+
+namespace App\Http\Middleware\app;
+
+use Closure;
+use Session;
+use DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rules\Exists;
+
+class AdminAuth
+{
+    //keeping record of api log
+    public function handle($request, Closure $next)
+    {
+        $response = $next($request);
+        return $response;
+    }
+}
