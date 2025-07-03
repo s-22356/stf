@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stf_udin_app
+    # IMPORTANT: Keep the bind mount for local development.
+    # The permissions on your HOST machine for `storage` and `bootstrap/cache`
+    # are CRITICAL here. Ensure they are owned by your host user and the www-data group,
+    # with 775 permissions (e.g., sudo chown -R yourusername:www-data storage bootstrap/cache && sudo chmod -R 775 storage bootstrap/cache)
+    volumes:
+      - .:/var/www/html/STF_UDIN
+      # Add a named volume for Composer cache to speed up `composer install`
+      - composer-cache:/root/.composer/cache
+    ports:
+      - "8000:80" # Map host port 8000 to container port 80 (Apache)
+    depends_on:
+      db:
+        condition: service_healthy # Wait for DB to be healthy
+      redis:
+        condition: service_started # Redis doesn't have a healthcheck by default
+    # Explicitly set the user to www-data to match the Apache user in the container.
+    # This helps prevent permission issues when running artisan commands from the host.
+    user: www-data
+    networks:
+      - stf_network
+    # Add a health check for the app service to ensure it's responsive
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"] # Simple check for web server response
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: mysql:8.0
+    container_name: stf_udin_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: stf_udin_certificates
+      MYSQL_USER: stf_user
+      MYSQL_PASSWORD: stf_pass
+    volumes:
+      - stf_udin_dbdata:/var/lib/mysql # Persistent volume for database data
+    ports:
+      - "3306:3306" # Expose MySQL port
+    networks:
+      - stf_network
+    # Add a health check for the database service
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: stf_udin_phpmyadmin
+    environment:
+      PMA_HOST: db # Link to the database service name
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root # Use the root password for phpMyAdmin login
+    ports:
+      - "8081:80" # Access phpMyAdmin on host port 8081
+    depends_on:
+      db:
+        condition: service_healthy # Wait for DB to be healthy
+    networks:
+      - stf_network
+
+  redis:
+    image: redis:alpine
+    container_name: stf_udin_redis
+    ports:
+      - "6379:6379" # Expose Redis port
+    networks:
+      - stf_network
+
+  queue:
+    # Reuse the app service's image to avoid rebuilding the same Dockerfile
+    image: stf_udin_app:latest # Use the image built by the 'app' service
+    container_name: stf_udin_queue
+    command: php artisan queue:work --tries=3 --verbose # Added --verbose for better logging
+    volumes:
+      - .:/var/www/html/STF_UDIN # Bind mount for code access
+      - composer-cache:/root/.composer/cache # Mount Composer cache
+    depends_on:
+      app:
+        condition: service_started # App doesn't need to be fully healthy, just started
+      redis:
+        condition: service_started
+    # Explicitly set the user to www-data
+    user: www-data
+    networks:
+      - stf_network
+
+  scheduler:
+    # Reuse the app service's image to avoid rebuilding the same Dockerfile
+    image: stf_udin_app:latest # Use the image built by the 'app' service
+    container_name: stf_udin_scheduler
+    # Ensure the command runs in a shell to allow `while` loop
+    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    volumes:
+      - .:/var/www/html/STF_UDIN # Bind mount for code access
+      - composer-cache:/root/.composer/cache # Mount Composer cache
+    depends_on:
+      app:
+        condition: service_started
+    # Explicitly set the user to www-data
+    user: www-data
+    networks:
+      - stf_network
+
+# Define named volumes for persistent data
+volumes:
+  stf_udin_dbdata: # For MySQL data persistence
+  composer-cache:  # For Composer package cache
+
+# Define the network
+networks:
+  stf_network:
+    driver: bridge # Explicitly define bridge driver (default, but good practice)
